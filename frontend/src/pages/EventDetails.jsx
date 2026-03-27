@@ -17,6 +17,12 @@ const EventDetails = () => {
   const [inviteEmail, setInviteEmail] = useState("");
   const [sendingInvite, setSendingInvite] = useState(false);
   const [inviteMessage, setInviteMessage] = useState(null);
+  const [manualGiftAmount, setManualGiftAmount] = useState("");
+  const [manualGiftName, setManualGiftName] = useState("");
+  const [manualGiftNote, setManualGiftNote] = useState("");
+  const [manualGiftMethod, setManualGiftMethod] = useState("Cash");
+  const [manualGiftLoading, setManualGiftLoading] = useState(false);
+  const [manualGiftMessage, setManualGiftMessage] = useState(null);
 
   // RSVP States
   const [rsvpEmail, setRsvpEmail] = useState("");
@@ -29,6 +35,8 @@ const EventDetails = () => {
   const [attendanceStats, setAttendanceStats] = useState(null);
   const [showAttendance, setShowAttendance] = useState(false);
   const [attendanceLoading, setAttendanceLoading] = useState(false);
+  const [giftList, setGiftList] = useState([]);
+  const [giftsLoading, setGiftsLoading] = useState(false);
   const isOrganizer =
     !!user &&
     !!event &&
@@ -75,6 +83,24 @@ const EventDetails = () => {
     }
   };
 
+  const fetchGiftList = async (passcodeOverride = "") => {
+    try {
+      setGiftsLoading(true);
+      const headers = passcodeOverride
+        ? { "x-passcode": passcodeOverride }
+        : {};
+      const { data } = await axios.get(`${API_URL}/api/events/${id}/gifts`, {
+        headers,
+        withCredentials: true,
+      });
+      setGiftList(data);
+    } catch (error) {
+      console.error("Failed to fetch gift list", error);
+    } finally {
+      setGiftsLoading(false);
+    }
+  };
+
   // Check my RSVP status
   const checkMyRSVP = async (email) => {
     try {
@@ -95,8 +121,10 @@ const EventDetails = () => {
     if (urlPasscode) {
       setPasscodeInput(urlPasscode);
       fetchEvent(urlPasscode);
+      fetchGiftList(urlPasscode);
     } else {
       fetchEvent();
+      fetchGiftList();
     }
   }, [id]);
 
@@ -110,6 +138,7 @@ const EventDetails = () => {
     e.preventDefault();
     setLoading(true);
     fetchEvent(passcodeInput);
+    fetchGiftList(passcodeInput);
   };
 
   useEffect(() => {
@@ -301,6 +330,70 @@ const EventDetails = () => {
     } catch (error) {
       console.error("Payment error", error);
       alert("Error initiating payment");
+    }
+  };
+
+  const handleManualGiftSubmit = async (e) => {
+    e.preventDefault();
+
+    const amount = Number(manualGiftAmount);
+    if (!amount || amount <= 0) {
+      setManualGiftMessage({
+        type: "error",
+        text: "Please enter a valid gift amount",
+      });
+      return;
+    }
+
+    try {
+      setManualGiftLoading(true);
+      setManualGiftMessage(null);
+
+      const { data } = await axios.post(
+        `${API_URL}/api/payment/manual`,
+        {
+          eventId: id,
+          amount,
+          donorName: manualGiftName,
+          note: manualGiftNote,
+          paymentMethod: manualGiftMethod,
+        },
+        { withCredentials: true },
+      );
+
+      setEvent((currentEvent) =>
+        currentEvent
+          ? { ...currentEvent, collectedAmount: data.collectedAmount }
+          : currentEvent,
+      );
+      setGiftList((currentGifts) => [
+        {
+          _id: data.transaction._id,
+          amount: data.transaction.amount,
+          paymentMethod: data.transaction.paymentMethod,
+          note: data.transaction.note,
+          entryType: data.transaction.entryType,
+          createdAt: data.transaction.createdAt,
+          contributorName: data.transaction.donorName || "Anonymous",
+          contributorEmail: "",
+        },
+        ...currentGifts,
+      ]);
+      setManualGiftAmount("");
+      setManualGiftName("");
+      setManualGiftNote("");
+      setManualGiftMethod("Cash");
+      setManualGiftMessage({
+        type: "success",
+        text: "Manual gift entry added successfully",
+      });
+    } catch (error) {
+      setManualGiftMessage({
+        type: "error",
+        text: error.response?.data?.message || "Failed to add manual gift",
+      });
+    } finally {
+      setManualGiftLoading(false);
     }
   };
 
@@ -659,6 +752,68 @@ const EventDetails = () => {
                     </div>
                   )}
                 </div>
+
+                <div className="bg-white rounded-xl p-6 mt-4 border border-purple-100 shadow-sm">
+                  <h3 className="text-lg font-bold text-purple-900 mb-3">
+                    Add Manual Gift Entry
+                  </h3>
+                  <form onSubmit={handleManualGiftSubmit} className="space-y-3">
+                    <input
+                      type="text"
+                      value={manualGiftName}
+                      onChange={(e) => setManualGiftName(e.target.value)}
+                      placeholder="Donor name (optional)"
+                      className="w-full border-2 border-purple-200 rounded-lg px-4 py-2 focus:ring-2 focus:ring-purple-500 outline-none transition-colors"
+                      disabled={manualGiftLoading}
+                    />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <input
+                        type="number"
+                        min="1"
+                        step="0.01"
+                        value={manualGiftAmount}
+                        onChange={(e) => setManualGiftAmount(e.target.value)}
+                        placeholder="Amount"
+                        className="w-full border-2 border-purple-200 rounded-lg px-4 py-2 focus:ring-2 focus:ring-purple-500 outline-none transition-colors"
+                        disabled={manualGiftLoading}
+                      />
+                      <select
+                        value={manualGiftMethod}
+                        onChange={(e) => setManualGiftMethod(e.target.value)}
+                        className="w-full border-2 border-purple-200 rounded-lg px-4 py-2 focus:ring-2 focus:ring-purple-500 outline-none transition-colors"
+                        disabled={manualGiftLoading}
+                      >
+                        <option value="Cash">Cash</option>
+                        <option value="Bank Transfer">Bank Transfer</option>
+                        <option value="UPI">UPI</option>
+                        <option value="Cheque">Cheque</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+                    <textarea
+                      value={manualGiftNote}
+                      onChange={(e) => setManualGiftNote(e.target.value)}
+                      placeholder="Note (optional)"
+                      rows="3"
+                      className="w-full border-2 border-purple-200 rounded-lg px-4 py-2 focus:ring-2 focus:ring-purple-500 outline-none transition-colors"
+                      disabled={manualGiftLoading}
+                    />
+                    <button
+                      type="submit"
+                      disabled={manualGiftLoading}
+                      className="bg-purple-600 hover:bg-purple-700 disabled:bg-purple-400 text-white font-bold py-2 px-4 rounded-lg transition-colors shadow-sm"
+                    >
+                      {manualGiftLoading ? "Saving..." : "Add Manual Gift"}
+                    </button>
+                  </form>
+                  {manualGiftMessage && (
+                    <p
+                      className={`mt-3 text-sm ${manualGiftMessage.type === "success" ? "text-green-600" : "text-red-600"}`}
+                    >
+                      {manualGiftMessage.text}
+                    </p>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -667,6 +822,59 @@ const EventDetails = () => {
 
       {/* Right Sidebar - Gift & RSVP */}
       <div className="w-full lg:w-96 space-y-6">
+        <div className="bg-white rounded-2xl shadow-xl p-8 border border-purple-100">
+          <h2 className="text-2xl font-bold text-purple-900 mb-6">
+            Contributions
+          </h2>
+          {giftsLoading ? (
+            <p className="text-sm text-gray-500">Loading contributions...</p>
+          ) : giftList.length === 0 ? (
+            <p className="text-sm text-gray-500">
+              No gifts have been recorded yet.
+            </p>
+          ) : (
+            <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
+              {giftList.map((gift) => (
+                <div
+                  key={gift._id}
+                  className="rounded-xl border border-purple-100 bg-purple-50/40 px-4 py-3"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-semibold text-gray-900">
+                        {gift.contributorName}
+                      </p>
+                      {gift.contributorEmail && (
+                        <p className="text-xs text-gray-500">
+                          {gift.contributorEmail}
+                        </p>
+                      )}
+                      <p className="text-xs text-gray-500 mt-1">
+                        {gift.entryType === "manual"
+                          ? `Manual entry via ${gift.paymentMethod}`
+                          : gift.paymentMethod}
+                      </p>
+                      {gift.note && (
+                        <p className="text-xs text-gray-600 mt-1">
+                          Note: {gift.note}
+                        </p>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      <p className="text-lg font-bold text-purple-700">
+                        Rs. {gift.amount}
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        {new Date(gift.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* RSVP Section for Non-Organizers */}
         {!isOrganizer && (
           <div className="bg-white rounded-2xl shadow-xl p-8 border border-purple-100">

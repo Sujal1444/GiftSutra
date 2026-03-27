@@ -32,6 +32,21 @@ const giftTransactionSchema = new mongoose.Schema(
       type: String,
       default: 'UPI', 
     },
+    donorName: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    note: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    entryType: {
+      type: String,
+      enum: ['online', 'manual'],
+      default: 'online',
+    },
   },
   { timestamps: true }
 );

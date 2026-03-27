@@ -81,6 +81,55 @@ export const getMyGifts = async (req, res) => {
   }
 };
 
+export const getEventGifts = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const event = await Event.findById(id).populate('organizer', 'name email');
+
+    if (!event) {
+      return res.status(404).json({ message: 'Event not found' });
+    }
+
+    if (event.isPrivate) {
+      const isOrganizer = req.user && req.user._id.toString() === event.organizer._id.toString();
+      const providedPasscode = req.query.passcode || req.headers['x-passcode'];
+
+      if (!isOrganizer && event.passcode && providedPasscode !== event.passcode) {
+        return res.status(403).json({ message: 'Passcode required to view this event', isPrivate: true });
+      }
+    }
+
+    const transactions = await GiftTransaction.find({
+      eventId: id,
+      status: 'success',
+    })
+      .populate('userId', 'name email')
+      .sort({ createdAt: -1 });
+
+    const gifts = transactions.map((transaction) => ({
+      _id: transaction._id,
+      amount: transaction.amount,
+      paymentMethod: transaction.paymentMethod,
+      note: transaction.note,
+      entryType: transaction.entryType,
+      createdAt: transaction.createdAt,
+      contributorName:
+        transaction.entryType === 'manual'
+          ? transaction.donorName || 'Anonymous'
+          : transaction.userId?.name || transaction.donorName || 'Unknown',
+      contributorEmail:
+        transaction.entryType === 'manual'
+          ? ''
+          : transaction.userId?.email || '',
+    }));
+
+    res.json(gifts);
+  } catch (error) {
+    logger.error(`Get event gifts error: ${error.message}`, { stack: error.stack });
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
 
 export const sendInvitation = async (req, res) => {
   try {

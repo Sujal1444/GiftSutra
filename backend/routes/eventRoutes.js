@@ -3,6 +3,7 @@ import {
   createEvent,
   getEvents,
   getEventById,
+  getEventGifts,
   getMyEvents,
   getMyGifts,
   sendInvitation,
@@ -23,6 +24,7 @@ router.get('/myevents', protect, getMyEvents);
 router.get('/mygifts', protect, getMyGifts);
 
 // Invitation & RSVP routes
+router.get('/:id/gifts', optionalAuth, getEventGifts);
 router.post('/:id/invite', protect, sendInvitation);
 router.post('/:id/rsvp', optionalAuth, respondToInvitation);
 router.get('/:id/rsvp', getMyRSVP);
