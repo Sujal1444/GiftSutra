@@ -2,7 +2,7 @@ import Razorpay from "razorpay";
 import crypto from "crypto";
 import GiftTransaction from "../models/GiftTransaction.js";
 import Event from "../models/Event.js";
-import { logger, auditLogger } from "../utils/logger.js";
+// import { logger, auditLogger } from "../utils/logger.js";
 import {
   appendManualGiftEntryToFile,
   getManualGiftFilePath,

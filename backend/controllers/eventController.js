@@ -3,7 +3,7 @@ import GiftTransaction from '../models/GiftTransaction.js';
 import User from '../models/User.js';
 import RSVP from '../models/RSVP.js';
 import { sendInvitationEmail } from '../utils/emailService.js';
-import { logger, auditLogger } from '../utils/logger.js';
+// import { logger, auditLogger } from '../utils/logger.js';
 
 export const createEvent = async (req, res) => {
   try {
