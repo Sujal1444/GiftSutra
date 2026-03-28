@@ -71,4 +71,39 @@ export const sendInvitationEmail = async (to, eventDetails, invitationLink) => {
     }
 };
 
-export default { sendInvitationEmail };
+export const sendPasswordResetEmail = async (to, resetLink) => {
+    const mailOptions = {
+        from: `"GiftSutra" <${process.env.SMTP_USER}>`,
+        to,
+        subject: 'Reset your GiftSutra password',
+        html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
+        <h2 style="color: #4f46e5; margin-bottom: 20px;">Reset your password</h2>
+        <p style="font-size: 16px; color: #333;">We received a request to reset your GiftSutra password.</p>
+        <p style="font-size: 16px; color: #333;">Use the button below to choose a new password. This link expires in 1 hour.</p>
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${resetLink}" 
+             style="background-color: #4f46e5; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold;">
+            Reset Password
+          </a>
+        </div>
+        <p style="font-size: 14px; color: #999; margin-top: 30px;">
+          If the button doesn't work, copy and paste this link into your browser:<br>
+          <a href="${resetLink}" style="color: #4f46e5;">${resetLink}</a>
+        </p>
+        <p style="font-size: 14px; color: #999;">If you did not request this, you can safely ignore this email.</p>
+      </div>
+    `,
+    };
+
+    try {
+        const info = await transporter.sendMail(mailOptions);
+        console.log('Password reset email sent:', info.messageId);
+        return { success: true, messageId: info.messageId };
+    } catch (error) {
+        console.error('Error sending password reset email:', error);
+        throw new Error('Failed to send password reset email');
+    }
+};
+
+export default { sendInvitationEmail, sendPasswordResetEmail };

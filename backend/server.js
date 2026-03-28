@@ -3,7 +3,7 @@ import dotenv from 'dotenv';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import morgan from 'morgan';
-// import { logger } from './utils/logger.js';
+import { logger } from './utils/logger.js';
 import connectDB from './config/db.js';
 
 import authRoutes from './routes/authRoutes.js';

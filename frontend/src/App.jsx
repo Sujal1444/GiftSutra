@@ -9,6 +9,7 @@ import CreateEvent from './pages/CreateEvent';
 import MyGifts from './pages/MyGifts';
 import Profile from './pages/Profile';
 import JoinEvent from './pages/JoinEvent';
+import ResetPassword from './pages/ResetPassword';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Navbar from './components/Navbar';
 
@@ -28,6 +29,7 @@ function App() {
               <Route path="/" element={<Navigate to="/dashboard" />} />
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
+              <Route path="/reset-password/:token" element={<ResetPassword />} />
               
               <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
               <Route path="/join" element={<ProtectedRoute><JoinEvent /></ProtectedRoute>} />

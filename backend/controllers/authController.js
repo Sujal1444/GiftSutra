@@ -1,7 +1,9 @@
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
-// import { logger, auditLogger } from '../utils/logger.js';
+import { logger, auditLogger } from '../utils/logger.js';
+import { sendPasswordResetEmail } from '../utils/emailService.js';
 
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET || 'secret123', {
@@ -136,6 +138,80 @@ export const updateUserProfile = async (req, res) => {
     });
   } catch (error) {
     logger.error(`Update profile error: ${error.message}`, { stack: error.stack, userId: req.user._id });
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+export const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ message: 'Email is required' });
+    }
+
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(200).json({
+        message: 'If an account exists for this email, a reset link has been sent.',
+      });
+    }
+
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const hashedResetToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+
+    user.resetPasswordToken = hashedResetToken;
+    user.resetPasswordExpires = new Date(Date.now() + 60 * 60 * 1000);
+    await user.save();
+
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const resetLink = `${frontendUrl}/reset-password/${resetToken}`;
+
+    await sendPasswordResetEmail(user.email, resetLink);
+
+    auditLogger.info('Password reset requested', { userId: user._id, email: user.email });
+
+    res.status(200).json({
+      message: 'If an account exists for this email, a reset link has been sent.',
+    });
+  } catch (error) {
+    logger.error(`Forgot password error: ${error.message}`, { stack: error.stack, email: req.body.email });
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+export const resetPassword = async (req, res) => {
+  try {
+    const { token } = req.params;
+    const { password } = req.body;
+
+    if (!password) {
+      return res.status(400).json({ message: 'Password is required' });
+    }
+
+    const hashedResetToken = crypto.createHash('sha256').update(token).digest('hex');
+
+    const user = await User.findOne({
+      resetPasswordToken: hashedResetToken,
+      resetPasswordExpires: { $gt: new Date() },
+    });
+
+    if (!user) {
+      return res.status(400).json({ message: 'Reset link is invalid or has expired' });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(password, salt);
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+    await user.save();
+
+    auditLogger.info('Password reset completed', { userId: user._id, email: user.email });
+
+    res.status(200).json({ message: 'Password reset successful' });
+  } catch (error) {
+    logger.error(`Reset password error: ${error.message}`, { stack: error.stack });
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };

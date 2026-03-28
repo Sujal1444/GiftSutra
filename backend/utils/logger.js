@@ -4,10 +4,10 @@ import fs from 'fs';
 import path from 'path';
 
 // Ensure logs directory exists
-// const logDir = 'logs';
-// if (!fs.existsSync(logDir)) {
-//   fs.mkdirSync(logDir);
-// }
+const logDir = path.resolve('logs');
+if (!fs.existsSync(logDir)) {
+  fs.mkdirSync(logDir, { recursive: true });
+}
 
 const { combine, timestamp, printf, errors, json, colorize } = winston.format;
 
@@ -25,26 +25,26 @@ const documentRotateOptions = {
 };
 
 // Main application logger
-// export const logger = winston.createLogger({
-//   level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
-//   format: combine(
-//     timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
-//     errors({ stack: true }),
-//     json()
-//   ),
-//   defaultMeta: { service: 'giftsutra-backend' },
-//   transports: [
-//     new winston.transports.DailyRotateFile({
-//       filename: path.join(logDir, 'error-%DATE%.log'),
-//       level: 'error',
-//       ...documentRotateOptions,
-//     }),
-//     new winston.transports.DailyRotateFile({
-//       filename: path.join(logDir, 'combined-%DATE%.log'),
-//       ...documentRotateOptions,
-//     }),
-//   ],
-// });
+export const logger = winston.createLogger({
+  level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
+  format: combine(
+    timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+    errors({ stack: true }),
+    json()
+  ),
+  defaultMeta: { service: 'giftsutra-backend' },
+  transports: [
+    new winston.transports.DailyRotateFile({
+      filename: path.join(logDir, 'error-%DATE%.log'),
+      level: 'error',
+      ...documentRotateOptions,
+    }),
+    new winston.transports.DailyRotateFile({
+      filename: path.join(logDir, 'combined-%DATE%.log'),
+      ...documentRotateOptions,
+    }),
+  ],
+});
 
 // Audit logger specifically for legal and critical transactions
 export const auditLogger = winston.createLogger({

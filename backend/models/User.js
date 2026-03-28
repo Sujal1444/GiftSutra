@@ -19,6 +19,12 @@ const userSchema = new mongoose.Schema(
       type: String, 
       default: 'https://via.placeholder.com/150',
     },
+    resetPasswordToken: {
+      type: String,
+    },
+    resetPasswordExpires: {
+      type: Date,
+    },
   },
   { timestamps: true }
 );
