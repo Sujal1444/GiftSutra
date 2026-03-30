@@ -3,12 +3,21 @@ import 'winston-daily-rotate-file';
 import fs from 'fs';
 import path from 'path';
 
-const isServerless = !!process.env.VERCEL;
 const logDir = path.resolve('logs');
+const isWritableLogsDir = () => {
+  try {
+    if (!fs.existsSync(logDir)) {
+      fs.mkdirSync(logDir, { recursive: true });
+    }
+    fs.accessSync(logDir, fs.constants.W_OK);
+    return true;
+  } catch {
+    return false;
+  }
+};
 
-if (!isServerless && !fs.existsSync(logDir)) {
-  fs.mkdirSync(logDir, { recursive: true });
-}
+const useFileLogging =
+  process.env.NODE_ENV !== 'production' && !process.env.VERCEL && isWritableLogsDir();
 
 const { combine, timestamp, printf, errors, json, colorize } = winston.format;
 
@@ -25,7 +34,7 @@ const documentRotateOptions = {
 };
 
 const buildTransports = (level) => {
-  if (isServerless) {
+  if (!useFileLogging) {
     return [
       new winston.transports.Console({
         level,
@@ -69,7 +78,7 @@ export const auditLogger = winston.createLogger({
     json()
   ),
   defaultMeta: { service: 'audit-trail' },
-  transports: isServerless
+  transports: !useFileLogging
     ? buildTransports('info')
     : [
         new winston.transports.DailyRotateFile({
@@ -79,7 +88,7 @@ export const auditLogger = winston.createLogger({
       ],
 });
 
-if (!isServerless && process.env.NODE_ENV !== 'production') {
+if (useFileLogging) {
   logger.add(new winston.transports.Console({
     format: combine(
       colorize(),
