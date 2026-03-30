@@ -8,7 +8,12 @@ const connectDB = async () => {
   }
 
   try {
-    const mongoUri = process.env.MONGO_URI || 'mongodb://localhost:27017/GiftSutra';
+    const mongoUri = process.env.MONGO_URI;
+
+    if (!mongoUri) {
+      throw new Error('MONGO_URI is not configured');
+    }
+
     cachedConnection =
       mongoose.connection.readyState === 1
         ? mongoose.connection
