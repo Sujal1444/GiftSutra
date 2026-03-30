@@ -4,6 +4,7 @@ import axios from "axios";
 import { useAuth } from "../context/AuthContext";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const RAZORPAY_ENABLED = !!import.meta.env.VITE_RAZORPAY_KEY_ID;
 
 const EventDetails = () => {
   const { id } = useParams();
@@ -264,6 +265,11 @@ const EventDetails = () => {
   };
 
   const handlePayment = async () => {
+    if (!RAZORPAY_ENABLED) {
+      alert("Online payments are not enabled yet.");
+      return;
+    }
+
     const finalAmount = Number(customAmount);
     if (!finalAmount || finalAmount <= 0) {
       alert("Please select or enter a valid amount");
@@ -285,7 +291,7 @@ const EventDetails = () => {
       }
 
       const options = {
-        key: import.meta.env.VITE_RAZORPAY_KEY_ID || "rzp_test_change_this",
+        key: import.meta.env.VITE_RAZORPAY_KEY_ID,
         amount: orderData.amount,
         currency: orderData.currency,
         name: "GiftSutra",
@@ -1000,6 +1006,7 @@ const EventDetails = () => {
           <div className="space-y-4">
             <button
               onClick={handlePayment}
+              disabled={!RAZORPAY_ENABLED}
               className="w-full flex items-center justify-center space-x-2 py-4 rounded-xl font-bold text-white text-lg bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-1"
             >
               <svg
@@ -1020,6 +1027,7 @@ const EventDetails = () => {
             </button>
             <button
               onClick={handlePayment}
+              disabled={!RAZORPAY_ENABLED}
               className="w-full flex items-center justify-center space-x-2 py-4 rounded-xl font-bold text-purple-700 text-lg bg-purple-50 hover:bg-purple-100 border-2 border-purple-200 shadow-sm transition-all transform hover:-translate-y-1"
             >
               <svg
@@ -1040,7 +1048,9 @@ const EventDetails = () => {
             </button>
           </div>
           <p className="text-xs text-center text-gray-400 mt-4">
-            Securely processed by Razorpay
+            {RAZORPAY_ENABLED
+              ? "Securely processed by Razorpay"
+              : "Online payments will be enabled later"}
           </p>
         </div>
       </div>

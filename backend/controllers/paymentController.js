@@ -4,17 +4,30 @@ import GiftTransaction from "../models/GiftTransaction.js";
 import Event from "../models/Event.js";
 import { logger, auditLogger } from "../utils/logger.js";
 
+const isRazorpayConfigured = () =>
+  !!process.env.RAZORPAY_KEY_ID && !!process.env.RAZORPAY_KEY_SECRET;
+
 // Initialize Razorpay
-// Note: In a real app, instantiate inside the function or assure process.env is loaded before
 const getRazorpayInstance = () => {
+  if (!isRazorpayConfigured()) {
+    throw new Error("Razorpay is not configured");
+  }
+
   return new Razorpay({
-    key_id: process.env.RAZORPAY_KEY_ID || "rzp_test_YourTestKeyHere",
-    key_secret: process.env.RAZORPAY_KEY_SECRET || "YourTestSecretHere",
+    key_id: process.env.RAZORPAY_KEY_ID,
+    key_secret: process.env.RAZORPAY_KEY_SECRET,
   });
 };
 
 export const createOrder = async (req, res) => {
   try {
+    if (!isRazorpayConfigured()) {
+      return res.status(503).json({
+        success: false,
+        message: "Online payments are not enabled yet",
+      });
+    }
+
     const { eventId, amount } = req.body;
 
     // Amount in Razorpay is expected in paise (multiply by 100)
@@ -51,6 +64,13 @@ export const createOrder = async (req, res) => {
 
 export const verifyPayment = async (req, res) => {
   try {
+    if (!isRazorpayConfigured()) {
+      return res.status(503).json({
+        success: false,
+        message: "Online payments are not enabled yet",
+      });
+    }
+
     const {
       razorpay_order_id,
       razorpay_payment_id,
@@ -59,7 +79,7 @@ export const verifyPayment = async (req, res) => {
       amount,
     } = req.body;
 
-    const secret = process.env.RAZORPAY_KEY_SECRET || "YourTestSecretHere";
+    const secret = process.env.RAZORPAY_KEY_SECRET;
 
     // Verify signature
     const generated_signature = crypto
