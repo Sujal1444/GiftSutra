@@ -12,8 +12,6 @@ import paymentRoutes from './routes/paymentRoutes.js';
 
 dotenv.config();
 
-connectDB();
-
 const app = express();
 
 app.use(cors({
@@ -51,6 +49,29 @@ app.get('/', (req, res) => res.send('API is running...'));
 //   });
 // });
 
-const PORT =  5000;
+app.use((err, req, res, next) => {
+  logger.error(`Unhandled error: ${err.message}`, { stack: err.stack });
+  res.status(err.status || 500).json({
+    success: false,
+    message: err.message || 'Internal Server Error',
+    ...(process.env.NODE_ENV !== 'production' && { stack: err.stack }),
+  });
+});
 
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+const PORT = process.env.PORT || 5000;
+
+const startServer = async () => {
+  await connectDB();
+  app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+};
+
+if (!process.env.VERCEL) {
+  startServer().catch((error) => {
+    logger.error(`Server startup failed: ${error.message}`, { stack: error.stack });
+    process.exit(1);
+  });
+} else {
+  await connectDB();
+}
+
+export default app;

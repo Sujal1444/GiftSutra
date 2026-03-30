@@ -3,9 +3,10 @@ import 'winston-daily-rotate-file';
 import fs from 'fs';
 import path from 'path';
 
-// Ensure logs directory exists
+const isServerless = !!process.env.VERCEL;
 const logDir = path.resolve('logs');
-if (!fs.existsSync(logDir)) {
+
+if (!isServerless && !fs.existsSync(logDir)) {
   fs.mkdirSync(logDir, { recursive: true });
 }
 
@@ -16,7 +17,6 @@ const consoleFormat = printf(({ level, message, timestamp, stack }) => {
   return `${timestamp} [${level}]: ${stack || message}`;
 });
 
-// Configure daily rotation transports
 const documentRotateOptions = {
   datePattern: 'YYYY-MM-DD',
   zippedArchive: true,
@@ -24,16 +24,21 @@ const documentRotateOptions = {
   maxFiles: '14d' // retain logs for 14 days
 };
 
-// Main application logger
-export const logger = winston.createLogger({
-  level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
-  format: combine(
-    timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
-    errors({ stack: true }),
-    json()
-  ),
-  defaultMeta: { service: 'giftsutra-backend' },
-  transports: [
+const buildTransports = (level) => {
+  if (isServerless) {
+    return [
+      new winston.transports.Console({
+        level,
+        format: combine(
+          timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+          errors({ stack: true }),
+          json()
+        ),
+      }),
+    ];
+  }
+
+  return [
     new winston.transports.DailyRotateFile({
       filename: path.join(logDir, 'error-%DATE%.log'),
       level: 'error',
@@ -43,10 +48,20 @@ export const logger = winston.createLogger({
       filename: path.join(logDir, 'combined-%DATE%.log'),
       ...documentRotateOptions,
     }),
-  ],
+  ];
+};
+
+export const logger = winston.createLogger({
+  level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
+  format: combine(
+    timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+    errors({ stack: true }),
+    json()
+  ),
+  defaultMeta: { service: 'giftsutra-backend' },
+  transports: buildTransports('info'),
 });
 
-// Audit logger specifically for legal and critical transactions
 export const auditLogger = winston.createLogger({
   level: 'info',
   format: combine(
@@ -54,16 +69,17 @@ export const auditLogger = winston.createLogger({
     json()
   ),
   defaultMeta: { service: 'audit-trail' },
-  transports: [
-    new winston.transports.DailyRotateFile({
-      filename: path.join(logDir, 'audit-%DATE%.log'),
-      ...documentRotateOptions,
-    }),
-  ],
+  transports: isServerless
+    ? buildTransports('info')
+    : [
+        new winston.transports.DailyRotateFile({
+          filename: path.join(logDir, 'audit-%DATE%.log'),
+          ...documentRotateOptions,
+        }),
+      ],
 });
 
-// If not in production, log to console
-if (process.env.NODE_ENV !== 'production') {
+if (!isServerless && process.env.NODE_ENV !== 'production') {
   logger.add(new winston.transports.Console({
     format: combine(
       colorize(),

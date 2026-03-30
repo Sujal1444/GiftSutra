@@ -2,7 +2,7 @@ import Razorpay from "razorpay";
 import crypto from "crypto";
 import GiftTransaction from "../models/GiftTransaction.js";
 import Event from "../models/Event.js";
-// import { logger, auditLogger } from "../utils/logger.js";
+import { logger, auditLogger } from "../utils/logger.js";
 import {
   appendManualGiftEntryToFile,
   getManualGiftFilePath,
@@ -168,18 +168,20 @@ export const createManualGift = async (req, res) => {
     event.collectedAmount += numericAmount;
     await event.save();
 
-    appendManualGiftEntryToFile({
-      transactionId: transaction._id.toString(),
-      eventId: event._id.toString(),
-      eventTitle: event.title,
-      organizerId: req.user._id.toString(),
-      donorName: transaction.donorName,
-      amount: numericAmount,
-      paymentMethod: transaction.paymentMethod,
-      note: transaction.note,
-      entryType: transaction.entryType,
-      createdAt: transaction.createdAt,
-    });
+    if (!process.env.VERCEL) {
+      appendManualGiftEntryToFile({
+        transactionId: transaction._id.toString(),
+        eventId: event._id.toString(),
+        eventTitle: event.title,
+        organizerId: req.user._id.toString(),
+        donorName: transaction.donorName,
+        amount: numericAmount,
+        paymentMethod: transaction.paymentMethod,
+        note: transaction.note,
+        entryType: transaction.entryType,
+        createdAt: transaction.createdAt,
+      });
+    }
 
     auditLogger.info(`Manual gift entry recorded`, {
       transactionId: transaction._id,
@@ -194,7 +196,7 @@ export const createManualGift = async (req, res) => {
       message: "Manual gift entry added",
       transaction,
       collectedAmount: event.collectedAmount,
-      filePath: getManualGiftFilePath(),
+      filePath: process.env.VERCEL ? null : getManualGiftFilePath(),
     });
   } catch (error) {
     logger.error(`Error creating manual gift entry: ${error.message}`, {
