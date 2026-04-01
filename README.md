@@ -74,6 +74,8 @@ Create a .env file inside the server folder:
 PORT=5000
 MONGO_URI=your_mongodb_connection_string
 
+---
+
 ### 4. Run the app
 - Backend:
 - npm run dev
@@ -102,15 +104,13 @@ MONGO_URI=your_mongodb_connection_string
 
 ---
 
-###👨‍💻 Author
+### 👨‍💻 Author
 
-Sujal Patel
-GitHub: https://github.com/Sujal1444
+### Sujal Patel
+- GitHub: https://github.com/Sujal1444
 
 ****
 
-
-
-
 If you like this project, give it a ⭐ on Git
 Hub!
+****
