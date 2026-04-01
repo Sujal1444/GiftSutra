@@ -70,18 +70,18 @@ Frontend:
 
 ### 3. Environment Variables
 
-Create a .env file inside the server folder:
-- PORT=5000
-- MONGO_URI=your_mongodb_connection_string
+- Create a .env file inside the server folder:
+PORT=5000
+MONGO_URI=your_mongodb_connection_string
 
 ---
 
 ### 4. Run the app
 - Backend:
-- npm run dev
+ npm run dev
 
 - Frontend:
-- npm run dev
+ npm run dev
 
 ---
 
