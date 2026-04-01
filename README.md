@@ -58,7 +58,7 @@ cd GiftSutra
 
 ### 2. Install dependencies
 
-- Backend:
+Backend:
 - cd backend
 - npm install
 
