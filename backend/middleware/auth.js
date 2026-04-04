@@ -1,79 +1,73 @@
 const jwt = require("jsonwebtoken");
 const User = require("../models/User.js");
 
-exports.auth = async (req, res, next) => {
-  const authHeader = req.header("authorization");
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return res.status(401).json({ success: false, message: "Invalid token" });
+const getTokenFromRequest = (req) => {
+  const authHeader = req.headers.authorization || req.headers.Authorization;
+
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    return authHeader.split(" ")[1];
   }
-  const token = authHeader.split(" ")[1];
+
+  return req.cookies?.jwt || null;
+};
+
+const attachRequestMetadata = (req) => {
+  req.ip =
+    req.headers["x-forwarded-for"]?.split(",").shift()?.trim() ||
+    req.socket?.remoteAddress ||
+    req.ip;
+};
+
+const getJwtSecret = () => process.env.JWT_SECRET || "fallback_secret_key";
+
+const resolveAuthenticatedUser = async (req) => {
+  const token = getTokenFromRequest(req);
+
   if (!token) {
-    return res.status(401).json({ success: false, message: "Invalid token" });
+    return { token: null, user: null, error: "Not authorized, no token" };
   }
+
   try {
-    jwt.verify(token, process.env.JWT_SECRET, async function (err, decoded) {
-      if (err) {
-        console.log(err);
+    const decoded = jwt.verify(token, getJwtSecret());
+    const user = await User.findById(decoded.id).select("-password");
 
-        return res.status(401).json({ success: false, message: err.message });
-      }
+    if (!user) {
+      return { token, user: null, error: "Not authorized, user not found" };
+    }
 
-      req.user = decoded;
-      req.ip =
-        req.headers["x-forwarded-for"]?.split(",").shift() ||
-        req.socket?.remoteAddress;
-
-      next();
-    });
-  } catch (e) {
-    console.log(e);
-
-    return res.status(401).json({ success: false, message: "Invalid token" });
+    return { token, user, error: null };
+  } catch (error) {
+    return { token, user: null, error: "Not authorized, token failed" };
   }
 };
 
-exports.optionalAuth = async (req, res, next) => {
-  let token = req.cookies.jwt;
-  if (
-    req.headers.authorization &&
-    req.headers.authorization.startsWith("Bearer")
-  ) {
-    token = req.headers.authorization.split(" ")[1];
+const protect = async (req, res, next) => {
+  const { token, user, error } = await resolveAuthenticatedUser(req);
+
+  if (!token || error) {
+    return res.status(401).json({ message: error || "Not authorized" });
   }
-  if (token) {
-    try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      req.user = await User.findById(decoded.id).select("-password");
-    } catch (error) {
-      console.error(error);
-      res.status(401).json({ message: "Not authorized, token failed" });
-    }
-  }
-  next();
+
+  req.user = user;
+  attachRequestMetadata(req);
+  return next();
 };
 
-exports.protect = async (req, res, next) => {
-  let token = req.cookies.jwt;
-  if (
-    req.headers.authorization &&
-    req.headers.authorization.startsWith("Bearer")
-  ) {
-    token = req.headers.authorization.split(" ")[1];
+const optionalAuth = async (req, res, next) => {
+  const { user } = await resolveAuthenticatedUser(req);
+
+  if (user) {
+    req.user = user;
+    attachRequestMetadata(req);
   }
 
-  if (token) {
-    try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      req.user = await User.findById(decoded.id).select("-password");
-      if (!req.user) {
-        return res.status(401).json({ message: "Not authorized, user not found" });
-      }
-      next();
-    } catch (error) {
-      console.error("Token verification error:", error.message);
-      res.status(401).json({ message: "Not authorized, token failed" });
-    }
-  } else {
-    res.status(401).json({ message: "Not authorized, no token" });
-  }
+  return next();
+};
+
+const auth = protect;
+
+module.exports = {
+  auth,
+  protect,
+  optionalAuth,
 };
