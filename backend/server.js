@@ -1,23 +1,25 @@
-import express from 'express';
-import dotenv from 'dotenv';
-import cors from 'cors';
-import cookieParser from 'cookie-parser';
-import morgan from 'morgan';
-import { logger } from './utils/logger.js';
-import connectDB from './config/db.js';
+import express from "express";
+import dotenv from "dotenv";
+import cors from "cors";
+import cookieParser from "cookie-parser";
+import morgan from "morgan";
+import { logger } from "./utils/logger.js";
+import connectDB from "./config/db.js";
 
-import authRoutes from './routes/authRoutes.js';
-import eventRoutes from './routes/eventRoutes.js';
-import paymentRoutes from './routes/paymentRoutes.js';
+import authRoutes from "./routes/authRoutes.js";
+import eventRoutes from "./routes/eventRoutes.js";
+import paymentRoutes from "./routes/paymentRoutes.js";
 
 dotenv.config();
 
 const app = express();
 
-app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
-  credentials: true,
-}));
+app.use(
+  cors({
+    origin: "*",
+    credentials: true,
+  }),
+);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -25,18 +27,20 @@ app.use(cookieParser());
 
 // HTTP request logging with morgan and winston
 const morganStream = {
-  write: (message) => logger.info(message.trim())
+  write: (message) => logger.info(message.trim()),
 };
-app.use(morgan('dev'));
+app.use(morgan("dev"));
 
 // Output the key length to console to ensure env is loading
-console.log(`Razorpay Key ID Load Check: ${process.env.RAZORPAY_KEY_ID ? process.env.RAZORPAY_KEY_ID.length : 'MISSING'}`);
+console.log(
+  `Razorpay Key ID Load Check: ${process.env.RAZORPAY_KEY_ID ? process.env.RAZORPAY_KEY_ID.length : "MISSING"}`,
+);
 
-app.use('/api/auth', authRoutes);
-app.use('/api/events', eventRoutes);
-app.use('/api/payment', paymentRoutes);
+app.use("/api/auth", authRoutes);
+app.use("/api/events", eventRoutes);
+app.use("/api/payment", paymentRoutes);
 
-app.get('/', (req, res) => res.send('API is running...'));
+app.get("/", (req, res) => res.send("API is running..."));
 
 // Global Error Handling Middleware
 // app.use((err, req, res, next) => {
@@ -53,8 +57,8 @@ app.use((err, req, res, next) => {
   logger.error(`Unhandled error: ${err.message}`, { stack: err.stack });
   res.status(err.status || 500).json({
     success: false,
-    message: err.message || 'Internal Server Error',
-    ...(process.env.NODE_ENV !== 'production' && { stack: err.stack }),
+    message: err.message || "Internal Server Error",
+    ...(process.env.NODE_ENV !== "production" && { stack: err.stack }),
   });
 });
 
@@ -67,7 +71,9 @@ const startServer = async () => {
 
 if (!process.env.VERCEL) {
   startServer().catch((error) => {
-    logger.error(`Server startup failed: ${error.message}`, { stack: error.stack });
+    logger.error(`Server startup failed: ${error.message}`, {
+      stack: error.stack,
+    });
     process.exit(1);
   });
 } else {
