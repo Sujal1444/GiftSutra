@@ -3,7 +3,6 @@ const User = require("../models/User.js");
 
 exports.auth = async (req, res, next) => {
   const token = req.header("authorization");
-  // const io = req.app.get("io");
   if (!token) {
     return res.status(401).json({ success: false, message: "Invalid token" });
   }
@@ -20,38 +19,14 @@ exports.auth = async (req, res, next) => {
         req.headers["x-forwarded-for"]?.split(",").shift() ||
         req.socket?.remoteAddress;
 
-      // const whereClause = JSON.stringify({
-      //   SQLWhere: `base.vLoginToken='${token}'`,
-      //   SQLJoin: "",
-      //   SQLOrderby: "",
-      // });
-
-      // console.log(whereClause, "[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[");
-      // console.log(decoded);
-
-      // const result = await new sql.Request()
-      //   .input("_ActionuserId", sql.Int, decoded.userId)
-      //   .input("JsonPara", sql.NVarChar, whereClause)
-      //   .input("IsLogin", sql.NVarChar, "")
-      //   .output("_RecCnt", sql.Int, 0)
-      //   .execute("usp_UserLog_Get");
-      // console.log(result);
-
-      // const refreshedToken = jwt.sign(decoded, process.env.JWT_SECRET, {
-      //   expiresIn: process.env.TOKEN_EXPIRATION,
-      // });
-      // io.emit(req.user.id, { token: refreshedToken });
       next();
     });
   } catch (e) {
     console.log(e);
 
-    return res
-      .status(enums.HTTP_CODES.UNAUTHORIZED)
-      .json({ success: false, message: messages.INVALID_TOKEN });
+    return res.status(401).json({ success: false, message: "Invalid token" });
   }
 };
-
 
 exports.optionalAuth = async (req, res, next) => {
   let token = req.cookies.jwt;
@@ -63,9 +38,12 @@ exports.optionalAuth = async (req, res, next) => {
   }
   if (token) {
     try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || "secret123");
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
       req.user = await User.findById(decoded.id).select("-password");
-    } catch (error) {}
+    } catch (error) {
+      console.error(error);
+      res.status(401).json({ message: "Not authorized, token failed" });
+    }
   }
   next();
 };
@@ -81,7 +59,7 @@ exports.protect = async (req, res, next) => {
 
   if (token) {
     try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || "secret123");
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
       req.user = await User.findById(decoded.id).select("-password");
       next();
     } catch (error) {
