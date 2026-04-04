@@ -16,7 +16,7 @@ const app = express();
 
 app.use(
   cors({
-    origin: "api-giftsutra.vercel.app",
+    origin: "https://api-giftsutra.vercel.app",
   }),
 );
 
