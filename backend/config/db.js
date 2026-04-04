@@ -1,29 +1,10 @@
 const mongoose = require("mongoose");
+const db = mongoose.connection;
 
-let cachedConnection = null;
+mongoose.connect(process.env.MONGO_URI);
 
-const connectDB = async () => {
-  if (cachedConnection) {
-    return cachedConnection;
-  }
+db.once("open", () => {
+  console.log("MongoDB Connected");
+});
 
-  try {
-    const mongoUri = process.env.MONGO_URI;
-
-    if (!mongoUri) {
-      throw new Error('MONGO_URI is not configured');
-    }
-
-    cachedConnection =
-      mongoose.connection.readyState === 1
-        ? mongoose.connection
-        : await mongoose.connect(mongoUri);
-    console.log(`MongoDB Connected: ${mongoose.connection.host}`);
-    return cachedConnection;
-  } catch (error) {
-    console.error(`Error: ${error.message}`);
-    throw error;
-  }
-};
-
-module.exports = connectDB;
+module.exports = db;

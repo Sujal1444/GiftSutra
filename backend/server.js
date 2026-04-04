@@ -4,13 +4,15 @@ const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const morgan = require("morgan");
 const { logger } = require("./utils/logger.js");
-const connectDB = require("./config/db.js");
 
 const authRoutes = require("./routes/authRoutes.js");
 const eventRoutes = require("./routes/eventRoutes.js");
 const paymentRoutes = require("./routes/paymentRoutes.js");
 
-dotenv.config();
+const path = require("path");
+
+dotenv.config({ path: path.join(__dirname, ".env") });
+const connectDB = require("./config/db");
 
 const app = express();
 app.use(morgan("dev"));
@@ -65,7 +67,7 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 5000;
 
 const startServer = async () => {
-  connectDB().catch(console.error);
+  // connectDB().catch(console.error);
   app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 };
 
@@ -76,8 +78,6 @@ if (!process.env.VERCEL) {
     });
     process.exit(1);
   });
-} else {
-  connectDB().catch(console.error);
 }
 
 module.exports = app;
