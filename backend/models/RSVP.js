@@ -1,4 +1,4 @@
-import mongoose from 'mongoose';
+const mongoose = require("mongoose");
 
 const rsvpSchema = new mongoose.Schema({
   eventId: {
@@ -47,4 +47,4 @@ rsvpSchema.index({ eventId: 1, email: 1 }, { unique: true });
 
 const RSVP = mongoose.model('RSVP', rsvpSchema);
 
-export default RSVP;
+module.exports = RSVP;

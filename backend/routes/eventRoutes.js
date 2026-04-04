@@ -1,5 +1,5 @@
-import express from 'express';
-import {
+const express = require("express");
+const {
   createEvent,
   getEvents,
   getEventById,
@@ -11,8 +11,8 @@ import {
   markAttendance,
   getAttendanceList,
   getMyRSVP
-} from '../controllers/eventController.js';
-import { protect, optionalAuth } from '../middleware/authMiddleware.js';
+} = require("../controllers/eventController.js");
+const { protect, optionalAuth } = require("../middleware/authMiddleware.js");
 
 const router = express.Router();
 
@@ -33,4 +33,4 @@ router.post('/:id/attendance', protect, markAttendance);
 
 router.get('/:id', optionalAuth, getEventById);
 
-export default router;
+module.exports = router;

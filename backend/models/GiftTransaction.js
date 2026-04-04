@@ -1,4 +1,4 @@
-import mongoose from 'mongoose';
+const mongoose = require("mongoose");
 
 const giftTransactionSchema = new mongoose.Schema(
   {
@@ -52,4 +52,4 @@ const giftTransactionSchema = new mongoose.Schema(
 );
 
 const GiftTransaction = mongoose.model('GiftTransaction', giftTransactionSchema);
-export default GiftTransaction;
+module.exports = GiftTransaction;

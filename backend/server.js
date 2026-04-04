@@ -1,14 +1,14 @@
-import express from "express";
-import dotenv from "dotenv";
-import cors from "cors";
-import cookieParser from "cookie-parser";
-import morgan from "morgan";
-import { logger } from "./utils/logger.js";
-import connectDB from "./config/db.js";
+const express = require("express");
+const dotenv = require("dotenv");
+const cors = require("cors");
+const cookieParser = require("cookie-parser");
+const morgan = require("morgan");
+const { logger } = require("./utils/logger.js");
+const connectDB = require("./config/db.js");
 
-import authRoutes from "./routes/authRoutes.js";
-import eventRoutes from "./routes/eventRoutes.js";
-import paymentRoutes from "./routes/paymentRoutes.js";
+const authRoutes = require("./routes/authRoutes.js");
+const eventRoutes = require("./routes/eventRoutes.js");
+const paymentRoutes = require("./routes/paymentRoutes.js");
 
 dotenv.config();
 
@@ -65,7 +65,7 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 5000;
 
 const startServer = async () => {
-  await connectDB();
+  connectDB().catch(console.error);
   app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 };
 
@@ -77,7 +77,7 @@ if (!process.env.VERCEL) {
     process.exit(1);
   });
 } else {
-  await connectDB();
+  connectDB().catch(console.error);
 }
 
-export default app;
+module.exports = app;

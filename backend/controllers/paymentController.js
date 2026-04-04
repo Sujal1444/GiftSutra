@@ -1,8 +1,8 @@
-import Razorpay from "razorpay";
-import crypto from "crypto";
-import GiftTransaction from "../models/GiftTransaction.js";
-import Event from "../models/Event.js";
-import { logger, auditLogger } from "../utils/logger.js";
+const Razorpay = require("razorpay");
+const crypto = require("crypto");
+const GiftTransaction = require("../models/GiftTransaction.js");
+const Event = require("../models/Event.js");
+const { logger, auditLogger } = require("../utils/logger.js");
 
 const isRazorpayConfigured = () =>
   !!process.env.RAZORPAY_KEY_ID && !!process.env.RAZORPAY_KEY_SECRET;
@@ -19,7 +19,7 @@ const getRazorpayInstance = () => {
   });
 };
 
-export const createOrder = async (req, res) => {
+exports.createOrder = async (req, res) => {
   try {
     if (!isRazorpayConfigured()) {
       return res.status(503).json({
@@ -62,7 +62,7 @@ export const createOrder = async (req, res) => {
   }
 };
 
-export const verifyPayment = async (req, res) => {
+exports.verifyPayment = async (req, res) => {
   try {
     if (!isRazorpayConfigured()) {
       return res.status(503).json({
@@ -137,7 +137,7 @@ export const verifyPayment = async (req, res) => {
   }
 };
 
-export const createManualGift = async (req, res) => {
+exports.createManualGift = async (req, res) => {
   try {
     const { eventId, amount, donorName, note, paymentMethod } = req.body;
 

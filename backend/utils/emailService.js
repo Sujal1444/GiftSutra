@@ -1,4 +1,4 @@
-import nodemailer from 'nodemailer';
+const nodemailer = require("nodemailer");
 
 const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST || 'smtp.gmail.com',
@@ -10,7 +10,7 @@ const transporter = nodemailer.createTransport({
     },
 });
 
-export const sendInvitationEmail = async (to, eventDetails, invitationLink) => {
+exports.sendInvitationEmail = async (to, eventDetails, invitationLink) => {
     const { title, description, date, organizerName } = eventDetails;
 
     const formattedDate = new Date(date).toLocaleDateString('en-US', {
@@ -71,7 +71,7 @@ export const sendInvitationEmail = async (to, eventDetails, invitationLink) => {
     }
 };
 
-export const sendPasswordResetEmail = async (to, resetLink) => {
+exports.sendPasswordResetEmail = async (to, resetLink) => {
     const mailOptions = {
         from: `"GiftSutra" <${process.env.SMTP_USER}>`,
         to,
@@ -106,4 +106,3 @@ export const sendPasswordResetEmail = async (to, resetLink) => {
     }
 };
 
-export default { sendInvitationEmail, sendPasswordResetEmail };

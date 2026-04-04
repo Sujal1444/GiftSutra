@@ -1,11 +1,11 @@
-import Event from '../models/Event.js';
-import GiftTransaction from '../models/GiftTransaction.js';
-import User from '../models/User.js';
-import RSVP from '../models/RSVP.js';
-import { sendInvitationEmail } from '../utils/emailService.js';
-import { logger, auditLogger } from '../utils/logger.js';
+const Event = require("../models/Event.js");
+const GiftTransaction = require("../models/GiftTransaction.js");
+const User = require("../models/User.js");
+const RSVP = require("../models/RSVP.js");
+const { sendInvitationEmail } = require("../utils/emailService.js");
+const { logger, auditLogger } = require("../utils/logger.js");
 
-export const createEvent = async (req, res) => {
+exports.createEvent = async (req, res) => {
   try {
     const { title, description, date, targetAmount, coverImage, isPrivate, passcode } = req.body;
 
@@ -28,7 +28,7 @@ export const createEvent = async (req, res) => {
   }
 };
 
-export const getEvents = async (req, res) => {
+exports.getEvents = async (req, res) => {
   try {
     const events = await Event.find({ isPrivate: { $ne: true } }).populate('organizer', 'name email');
     res.json(events);
@@ -38,7 +38,7 @@ export const getEvents = async (req, res) => {
   }
 };
 
-export const getEventById = async (req, res) => {
+exports.getEventById = async (req, res) => {
   try {
     const event = await Event.findById(req.params.id).populate('organizer', 'name email');
 
@@ -61,7 +61,7 @@ export const getEventById = async (req, res) => {
   }
 };
 
-export const getMyEvents = async (req, res) => {
+exports.getMyEvents = async (req, res) => {
   try {
     const events = await Event.find({ organizer: req.user._id });
     res.json(events);
@@ -70,7 +70,7 @@ export const getMyEvents = async (req, res) => {
   }
 };
 
-export const getMyGifts = async (req, res) => {
+exports.getMyGifts = async (req, res) => {
   try {
     const transactions = await GiftTransaction.find({ userId: req.user._id })
       .populate('eventId', 'title date')
@@ -81,7 +81,7 @@ export const getMyGifts = async (req, res) => {
   }
 };
 
-export const getEventGifts = async (req, res) => {
+exports.getEventGifts = async (req, res) => {
   try {
     const { id } = req.params;
     const event = await Event.findById(id).populate('organizer', 'name email');
@@ -131,7 +131,7 @@ export const getEventGifts = async (req, res) => {
 };
 
 
-export const sendInvitation = async (req, res) => {
+exports.sendInvitation = async (req, res) => {
   try {
     const { id } = req.params;
     const { email } = req.body;
@@ -184,7 +184,7 @@ export const sendInvitation = async (req, res) => {
 };
 
 // RSVP Response - Accept/Decline/Maybe
-export const respondToInvitation = async (req, res) => {
+exports.respondToInvitation = async (req, res) => {
   try {
     const { id } = req.params;
     const { email, status, notes } = req.body;
@@ -223,7 +223,7 @@ export const respondToInvitation = async (req, res) => {
 };
 
 // Mark attendance (for organizer)
-export const markAttendance = async (req, res) => {
+exports.markAttendance = async (req, res) => {
   try {
     const { id } = req.params;
     const { rsvpId, attended, notes } = req.body;
@@ -258,7 +258,7 @@ export const markAttendance = async (req, res) => {
 };
 
 // Get attendance list for an event (organizer only)
-export const getAttendanceList = async (req, res) => {
+exports.getAttendanceList = async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -295,7 +295,7 @@ export const getAttendanceList = async (req, res) => {
 };
 
 // Get my RSVP status for an event
-export const getMyRSVP = async (req, res) => {
+exports.getMyRSVP = async (req, res) => {
   try {
     const { id } = req.params;
     const { email } = req.query;
