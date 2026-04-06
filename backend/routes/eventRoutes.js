@@ -7,6 +7,7 @@ const {
   getMyEvents,
   getMyGifts,
   sendInvitation,
+  joinEvent,
   respondToInvitation,
   markAttendance,
   getAttendanceList,
@@ -18,12 +19,13 @@ const router = express.Router();
 
 router.route("/").get(getEvents).post(protect, createEvent);
 
-router.get("/events/myevents", protect, getMyEvents);
+router.get("/myevents", protect, getMyEvents);
 router.get("/mygifts", protect, getMyGifts);
 
 // Invitation & RSVP routes
-router.get("/:id/gifts", optionalAuth, getEventGifts);
+router.get("/:id/gifts", protect, getEventGifts);
 router.post("/:id/invite", protect, sendInvitation);
+router.post("/:id/join", protect, joinEvent);
 router.post("/:id/rsvp", optionalAuth, respondToInvitation);
 router.get("/:id/rsvp", getMyRSVP);
 router.get("/:id/attendance", protect, getAttendanceList);

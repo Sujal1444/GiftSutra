@@ -2,6 +2,7 @@ const Razorpay = require("razorpay");
 const crypto = require("crypto");
 const GiftTransaction = require("../models/GiftTransaction.js");
 const Event = require("../models/Event.js");
+const RSVP = require("../models/RSVP.js");
 const { logger, auditLogger } = require("../utils/logger.js");
 
 const isRazorpayConfigured = () =>
@@ -19,6 +20,47 @@ const getRazorpayInstance = () => {
   });
 };
 
+const validateContributionEligibility = async (eventId, userId, userEmail) => {
+  const event = await Event.findById(eventId);
+
+  if (!event) {
+    return {
+      allowed: false,
+      status: 404,
+      payload: { success: false, message: "Event not found" },
+    };
+  }
+
+  if (event.organizer.toString() === userId.toString()) {
+    return {
+      allowed: false,
+      status: 403,
+      payload: {
+        success: false,
+        message: "Event organizers cannot make payments for their own event",
+      },
+    };
+  }
+
+  const normalizedEmail = userEmail?.toLowerCase?.();
+  const rsvp = normalizedEmail
+    ? await RSVP.findOne({ eventId, email: normalizedEmail })
+    : null;
+
+  if (!rsvp || rsvp.status !== "accepted") {
+    return {
+      allowed: false,
+      status: 403,
+      payload: {
+        success: false,
+        message: "You must join the event before making a payment",
+      },
+    };
+  }
+
+  return { allowed: true, event };
+};
+
 exports.createOrder = async (req, res) => {
   try {
     if (!isRazorpayConfigured()) {
@@ -29,6 +71,15 @@ exports.createOrder = async (req, res) => {
     }
 
     const { eventId, amount } = req.body;
+    const eligibility = await validateContributionEligibility(
+      eventId,
+      req.user._id,
+      req.user.email,
+    );
+
+    if (!eligibility.allowed) {
+      return res.status(eligibility.status).json(eligibility.payload);
+    }
 
     // Amount in Razorpay is expected in paise (multiply by 100)
     const options = {
@@ -78,6 +129,15 @@ exports.verifyPayment = async (req, res) => {
       eventId,
       amount,
     } = req.body;
+    const eligibility = await validateContributionEligibility(
+      eventId,
+      req.user._id,
+      req.user.email,
+    );
+
+    if (!eligibility.allowed) {
+      return res.status(eligibility.status).json(eligibility.payload);
+    }
 
     const secret = process.env.RAZORPAY_KEY_SECRET;
 

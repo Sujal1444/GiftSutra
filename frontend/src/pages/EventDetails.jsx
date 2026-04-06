@@ -30,6 +30,7 @@ const EventDetails = () => {
   const [myRSVP, setMyRSVP] = useState(null);
   const [rsvpLoading, setRsvpLoading] = useState(false);
   const [rsvpMessage, setRsvpMessage] = useState(null);
+  const [joinLoading, setJoinLoading] = useState(false);
 
   // Attendance States (for organizer)
   const [attendanceList, setAttendanceList] = useState([]);
@@ -38,10 +39,20 @@ const EventDetails = () => {
   const [attendanceLoading, setAttendanceLoading] = useState(false);
   const [giftList, setGiftList] = useState([]);
   const [giftsLoading, setGiftsLoading] = useState(false);
+  const normalizedUserId = user?._id?.toString?.() || user?.id?.toString?.() || "";
+  const normalizedOrganizerId =
+    event?.organizer?._id?.toString?.() || event?.organizer?.id?.toString?.() || "";
+  const normalizedUserEmail = user?.email?.toLowerCase?.() || "";
+  const normalizedOrganizerEmail = event?.organizer?.email?.toLowerCase?.() || "";
   const isOrganizer =
     !!user &&
     !!event &&
-    user._id?.toString() === event.organizer?._id?.toString();
+    (
+      (normalizedUserId && normalizedOrganizerId && normalizedUserId === normalizedOrganizerId) ||
+      (normalizedUserEmail && normalizedOrganizerEmail && normalizedUserEmail === normalizedOrganizerEmail)
+    );
+  const hasJoinedEvent = myRSVP?.status === "accepted";
+  const canMakePayment = !isOrganizer && hasJoinedEvent;
 
   const fetchEvent = async (passcodeOverride = "") => {
     try {
@@ -122,12 +133,24 @@ const EventDetails = () => {
     if (urlPasscode) {
       setPasscodeInput(urlPasscode);
       fetchEvent(urlPasscode);
-      fetchGiftList(urlPasscode);
     } else {
       fetchEvent();
-      fetchGiftList();
     }
   }, [id]);
+
+  useEffect(() => {
+    if (!event) {
+      return;
+    }
+
+    if (!isOrganizer) {
+      setGiftList([]);
+      setGiftsLoading(false);
+      return;
+    }
+
+    fetchGiftList();
+  }, [event, id, isOrganizer]);
 
   useEffect(() => {
     if (showAttendance && isOrganizer) {
@@ -135,11 +158,19 @@ const EventDetails = () => {
     }
   }, [showAttendance, id, isOrganizer]);
 
+  useEffect(() => {
+    if (!user?.email || isOrganizer) {
+      return;
+    }
+
+    setRsvpEmail(user.email);
+    checkMyRSVP(user.email);
+  }, [user, isOrganizer, id]);
+
   const handlePasscodeSubmit = (e) => {
     e.preventDefault();
     setLoading(true);
     fetchEvent(passcodeInput);
-    fetchGiftList(passcodeInput);
   };
 
   useEffect(() => {
@@ -225,6 +256,40 @@ const EventDetails = () => {
     }
   };
 
+  const handleJoinEvent = async () => {
+    if (!user?.email) {
+      setRsvpMessage({
+        type: "error",
+        text: "Please log in with a valid email account to join this event.",
+      });
+      return;
+    }
+
+    setJoinLoading(true);
+    setRsvpMessage(null);
+
+    try {
+      const { data } = await axios.post(
+        `${API_URL}/api/events/${id}/join`,
+        { passcode: passcodeInput || undefined },
+        { withCredentials: true },
+      );
+      setRsvpEmail(user.email);
+      setMyRSVP(data.rsvp);
+      setRsvpMessage({
+        type: "success",
+        text: data.message || "You joined the event successfully.",
+      });
+    } catch (error) {
+      setRsvpMessage({
+        type: "error",
+        text: error.response?.data?.message || "Failed to join the event",
+      });
+    } finally {
+      setJoinLoading(false);
+    }
+  };
+
   // Check RSVP by email
   const handleCheckRSVP = async (e) => {
     e.preventDefault();
@@ -265,6 +330,16 @@ const EventDetails = () => {
   };
 
   const handlePayment = async () => {
+    if (isOrganizer) {
+      alert("Organizers cannot make payments for their own event.");
+      return;
+    }
+
+    if (!hasJoinedEvent) {
+      alert("Please join the event before making a payment.");
+      return;
+    }
+
     if (!RAZORPAY_ENABLED) {
       alert("Online payments are not enabled yet.");
       return;
@@ -491,6 +566,36 @@ const EventDetails = () => {
             <p className="text-gray-600 leading-relaxed mb-8">
               {event.description}
             </p>
+
+            {!isOrganizer && (
+              <div className="mb-8 rounded-2xl border border-purple-200 bg-purple-50 px-5 py-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-purple-900">
+                      Joining as {user?.email || "your account"}
+                    </p>
+                    <p className="text-sm text-purple-700">
+                      Tap below to join this event from your account.
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleJoinEvent}
+                    disabled={joinLoading || myRSVP?.status === "accepted"}
+                    className={`rounded-xl px-5 py-3 text-sm font-bold text-white shadow-sm transition-colors ${
+                      joinLoading || myRSVP?.status === "accepted"
+                        ? "bg-green-600 cursor-not-allowed"
+                        : "bg-purple-600 hover:bg-purple-700"
+                    }`}
+                  >
+                    {joinLoading
+                      ? "Joining..."
+                      : myRSVP?.status === "accepted"
+                        ? "Joined"
+                        : "Join Event"}
+                  </button>
+                </div>
+              </div>
+            )}
 
             {isOrganizer && (
               <div className="border-t pt-6 mt-6">
@@ -828,58 +933,60 @@ const EventDetails = () => {
 
       {/* Right Sidebar - Gift & RSVP */}
       <div className="w-full lg:w-96 space-y-6">
-        <div className="bg-white rounded-2xl shadow-xl p-8 border border-purple-100">
-          <h2 className="text-2xl font-bold text-purple-900 mb-6">
-            Contributions
-          </h2>
-          {giftsLoading ? (
-            <p className="text-sm text-gray-500">Loading contributions...</p>
-          ) : giftList.length === 0 ? (
-            <p className="text-sm text-gray-500">
-              No gifts have been recorded yet.
-            </p>
-          ) : (
-            <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
-              {giftList.map((gift) => (
-                <div
-                  key={gift._id}
-                  className="rounded-xl border border-purple-100 bg-purple-50/40 px-4 py-3"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-semibold text-gray-900">
-                        {gift.contributorName}
-                      </p>
-                      {gift.contributorEmail && (
-                        <p className="text-xs text-gray-500">
-                          {gift.contributorEmail}
+        {isOrganizer && (
+          <div className="bg-white rounded-2xl shadow-xl p-8 border border-purple-100">
+            <h2 className="text-2xl font-bold text-purple-900 mb-6">
+              Contributions
+            </h2>
+            {giftsLoading ? (
+              <p className="text-sm text-gray-500">Loading contributions...</p>
+            ) : giftList.length === 0 ? (
+              <p className="text-sm text-gray-500">
+                No gifts have been recorded yet.
+              </p>
+            ) : (
+              <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
+                {giftList.map((gift) => (
+                  <div
+                    key={gift._id}
+                    className="rounded-xl border border-purple-100 bg-purple-50/40 px-4 py-3"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="font-semibold text-gray-900">
+                          {gift.contributorName}
                         </p>
-                      )}
-                      <p className="text-xs text-gray-500 mt-1">
-                        {gift.entryType === "manual"
-                          ? `Manual entry via ${gift.paymentMethod}`
-                          : gift.paymentMethod}
-                      </p>
-                      {gift.note && (
-                        <p className="text-xs text-gray-600 mt-1">
-                          Note: {gift.note}
+                        {gift.contributorEmail && (
+                          <p className="text-xs text-gray-500">
+                            {gift.contributorEmail}
+                          </p>
+                        )}
+                        <p className="text-xs text-gray-500 mt-1">
+                          {gift.entryType === "manual"
+                            ? `Manual entry via ${gift.paymentMethod}`
+                            : gift.paymentMethod}
                         </p>
-                      )}
-                    </div>
-                    <div className="text-right">
-                      <p className="text-lg font-bold text-purple-700">
-                        Rs. {gift.amount}
-                      </p>
-                      <p className="text-xs text-gray-400">
-                        {new Date(gift.createdAt).toLocaleDateString()}
-                      </p>
+                        {gift.note && (
+                          <p className="text-xs text-gray-600 mt-1">
+                            Note: {gift.note}
+                          </p>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <p className="text-lg font-bold text-purple-700">
+                          Rs. {gift.amount}
+                        </p>
+                        <p className="text-xs text-gray-400">
+                          {new Date(gift.createdAt).toLocaleDateString()}
+                        </p>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* RSVP Section for Non-Organizers */}
         {!isOrganizer && (
@@ -901,6 +1008,22 @@ const EventDetails = () => {
               </svg>
               RSVP
             </h2>
+
+            <button
+              onClick={handleJoinEvent}
+              disabled={joinLoading || myRSVP?.status === "accepted"}
+              className={`mb-4 w-full rounded-xl py-3 text-sm font-bold text-white transition-colors ${
+                joinLoading || myRSVP?.status === "accepted"
+                  ? "bg-green-600 cursor-not-allowed"
+                  : "bg-purple-600 hover:bg-purple-700"
+              }`}
+            >
+              {joinLoading
+                ? "Joining..."
+                : myRSVP?.status === "accepted"
+                  ? "Joined This Event"
+                  : "Join Event"}
+            </button>
 
             <form onSubmit={handleCheckRSVP} className="mb-4">
               <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -979,80 +1102,81 @@ const EventDetails = () => {
           </div>
         )}
 
-        {/* Gift Section */}
-        <div className="bg-white rounded-2xl shadow-xl p-8 sticky top-10 border border-purple-100">
-          <h2 className="text-2xl font-bold text-purple-900 mb-6 flex items-center">
-            🎁 Send a Gift
-          </h2>
+        {canMakePayment && (
+          <div className="bg-white rounded-2xl shadow-xl p-8 sticky top-10 border border-purple-100">
+            <h2 className="text-2xl font-bold text-purple-900 mb-6 flex items-center">
+              🎁 Send a Gift
+            </h2>
 
-          <div className="mb-8">
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Enter Amount
-            </label>
-            <div className="relative">
-              <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 font-bold">
-                ₹
-              </span>
-              <input
-                type="number"
-                value={customAmount}
-                onChange={(e) => setCustomAmount(e.target.value)}
-                className="w-full pl-10 pr-4 py-4 bg-gray-50 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-purple-500 focus:bg-white transition-colors text-lg font-bold"
-                placeholder="0.00"
-              />
+            <div className="mb-8">
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Enter Amount
+              </label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 font-bold">
+                  ₹
+                </span>
+                <input
+                  type="number"
+                  value={customAmount}
+                  onChange={(e) => setCustomAmount(e.target.value)}
+                  className="w-full pl-10 pr-4 py-4 bg-gray-50 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-purple-500 focus:bg-white transition-colors text-lg font-bold"
+                  placeholder="0.00"
+                />
+              </div>
             </div>
-          </div>
 
-          <div className="space-y-4">
-            <button
-              onClick={handlePayment}
-              disabled={!RAZORPAY_ENABLED}
-              className="w-full flex items-center justify-center space-x-2 py-4 rounded-xl font-bold text-white text-lg bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-1"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-6 w-6"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
+            <div className="space-y-4">
+              <button
+                onClick={handlePayment}
+                disabled={!RAZORPAY_ENABLED}
+                className="w-full flex items-center justify-center space-x-2 py-4 rounded-xl font-bold text-white text-lg bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-1"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M13 10V3L4 14h7v7l9-11h-7z"
-                />
-              </svg>
-              <span>Send Gift with Google Pay</span>
-            </button>
-            <button
-              onClick={handlePayment}
-              disabled={!RAZORPAY_ENABLED}
-              className="w-full flex items-center justify-center space-x-2 py-4 rounded-xl font-bold text-purple-700 text-lg bg-purple-50 hover:bg-purple-100 border-2 border-purple-200 shadow-sm transition-all transform hover:-translate-y-1"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-6 w-6"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-6 w-6"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M13 10V3L4 14h7v7l9-11h-7z"
+                  />
+                </svg>
+                <span>Send Gift with Google Pay</span>
+              </button>
+              <button
+                onClick={handlePayment}
+                disabled={!RAZORPAY_ENABLED}
+                className="w-full flex items-center justify-center space-x-2 py-4 rounded-xl font-bold text-purple-700 text-lg bg-purple-50 hover:bg-purple-100 border-2 border-purple-200 shadow-sm transition-all transform hover:-translate-y-1"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
-                />
-              </svg>
-              <span>Other Payment Options</span>
-            </button>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-6 w-6"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
+                  />
+                </svg>
+                <span>Other Payment Options</span>
+              </button>
+            </div>
+            <p className="text-xs text-center text-gray-400 mt-4">
+              {RAZORPAY_ENABLED
+                ? "Securely processed by Razorpay"
+                : "Online payments will be enabled later"}
+            </p>
           </div>
-          <p className="text-xs text-center text-gray-400 mt-4">
-            {RAZORPAY_ENABLED
-              ? "Securely processed by Razorpay"
-              : "Online payments will be enabled later"}
-          </p>
-        </div>
+        )}
       </div>
     </div>
   );

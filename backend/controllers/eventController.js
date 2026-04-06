@@ -63,7 +63,7 @@ exports.getEventById = async (req, res) => {
 
 exports.getMyEvents = async (req, res) => {
   try {
-    const events = await Event.find({ organizer: req.user._id });
+    const events = await Event.find({ organizer: req.user._id }).populate('organizer', 'name email');
     res.json(events);
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -90,13 +90,10 @@ exports.getEventGifts = async (req, res) => {
       return res.status(404).json({ message: 'Event not found' });
     }
 
-    if (event.isPrivate) {
-      const isOrganizer = req.user && req.user._id.toString() === event.organizer._id.toString();
-      const providedPasscode = req.query.passcode || req.headers['x-passcode'];
+    const isOrganizer = req.user && req.user._id.toString() === event.organizer._id.toString();
 
-      if (!isOrganizer && event.passcode && providedPasscode !== event.passcode) {
-        return res.status(403).json({ message: 'Passcode required to view this event', isPrivate: true });
-      }
+    if (!isOrganizer) {
+      return res.status(403).json({ message: 'Only the event organizer can view contributions' });
     }
 
     const transactions = await GiftTransaction.find({
@@ -179,6 +176,61 @@ exports.sendInvitation = async (req, res) => {
     res.json({ message: 'Invitation sent successfully', rsvp });
   } catch (error) {
     logger.error(`Send invitation error: ${error.message}`, { stack: error.stack, userId: req.user._id });
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+exports.joinEvent = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const providedPasscode = req.body?.passcode || req.headers['x-passcode'];
+    const event = await Event.findById(id).populate('organizer', 'name email');
+
+    if (!event) {
+      return res.status(404).json({ message: 'Event not found' });
+    }
+
+    if (event.organizer._id.toString() === req.user._id.toString()) {
+      return res.status(400).json({ message: 'You are already the organizer of this event' });
+    }
+
+    if (event.isPrivate && event.passcode && providedPasscode !== event.passcode) {
+      return res.status(403).json({ message: 'Passcode required to join this event', isPrivate: true });
+    }
+
+    const email = req.user.email?.toLowerCase();
+    if (!email) {
+      return res.status(400).json({ message: 'A valid account email is required to join this event' });
+    }
+
+    let rsvp = await RSVP.findOne({ eventId: id, email });
+
+    if (!rsvp) {
+      rsvp = await RSVP.create({
+        eventId: id,
+        email,
+        userId: req.user._id,
+        status: 'accepted',
+        invitedAt: new Date(),
+        respondedAt: new Date(),
+      });
+    } else {
+      rsvp.userId = req.user._id;
+      rsvp.status = 'accepted';
+      rsvp.respondedAt = new Date();
+      await rsvp.save();
+    }
+
+    auditLogger.info(`Event joined`, {
+      eventId: id,
+      userId: req.user._id,
+      email,
+      rsvpId: rsvp._id,
+    });
+
+    res.json({ message: 'You joined the event successfully', rsvp });
+  } catch (error) {
+    logger.error(`Join event error: ${error.message}`, { stack: error.stack, userId: req.user?._id });
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };

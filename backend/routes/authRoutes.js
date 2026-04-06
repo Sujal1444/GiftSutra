@@ -5,6 +5,7 @@ const {
   logoutUser,
   getUserProfile,
   updateUserProfile,
+  deleteUserAccount,
   forgotPassword,
   resetPassword,
   verifyOTP,
@@ -22,6 +23,7 @@ router.post("/reset-password/:token", resetPassword);
 router
   .route("/profile")
   .get(protect, getUserProfile)
-  .put(protect, updateUserProfile);
+  .put(protect, updateUserProfile)
+  .delete(protect, deleteUserAccount);
 
 module.exports = router;

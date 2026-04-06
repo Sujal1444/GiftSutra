@@ -58,7 +58,7 @@ const JoinEvent = () => {
         </svg>
       </div>
       <h2 className="text-2xl font-bold text-gray-900 mb-2 text-center">Join an Event</h2>
-      <p className="text-gray-500 mb-6 text-center">Paste an invite link or Event ID</p>
+      <p className="text-gray-500 mb-6 text-center">Paste an invite link or Event ID, then join from the event page</p>
       
       {error && (
         <div className="bg-red-50 text-red-600 p-3 rounded-lg mb-4 text-sm text-center">
@@ -81,7 +81,7 @@ const JoinEvent = () => {
           type="submit"
           className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-lg shadow-md transition-colors"
         >
-          Go to Event
+          Open Event
         </button>
       </form>
     </div>

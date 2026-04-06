@@ -15,6 +15,7 @@ dotenv.config({ path: path.join(__dirname, ".env") });
 const connectDB = require("./config/db");
 
 const app = express();
+const REQUEST_BODY_LIMIT = "10mb";
 app.use(morgan("dev"));
 
 app.use(
@@ -24,8 +25,8 @@ app.use(
   }),
 );
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: REQUEST_BODY_LIMIT }));
+app.use(express.urlencoded({ extended: true, limit: REQUEST_BODY_LIMIT }));
 app.use(cookieParser());
 
 // HTTP request logging with morgan and winston
@@ -56,6 +57,13 @@ app.get("/", (req, res) => res.send("API is running..."));
 // });
 
 app.use((err, req, res, next) => {
+  if (err.type === "entity.too.large") {
+    return res.status(413).json({
+      success: false,
+      message: "Uploaded image is too large. Please choose a smaller file.",
+    });
+  }
+
   logger.error(`Unhandled error: ${err.message}`, { stack: err.stack });
   res.status(err.status || 500).json({
     success: false,

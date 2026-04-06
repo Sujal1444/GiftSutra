@@ -196,11 +196,38 @@ const updateUserProfile = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    user.name = req.body.name || user.name;
-    user.avatar = req.body.avatar || user.avatar;
-    if (req.body.password) {
+    if (typeof req.body.name === "string" && req.body.name.trim()) {
+      user.name = req.body.name.trim();
+    }
+
+    if (typeof req.body.email === "string" && req.body.email.trim()) {
+      const normalizedEmail = req.body.email.trim().toLowerCase();
+
+      const existingUser = await User.findOne({
+        email: normalizedEmail,
+        _id: { $ne: user._id },
+      });
+
+      if (existingUser) {
+        return res.status(400).json({ message: "Email is already in use" });
+      }
+
+      user.email = normalizedEmail;
+    }
+
+    if (typeof req.body.avatar === "string") {
+      user.avatar = req.body.avatar.trim() || user.avatar;
+    }
+
+    if (typeof req.body.password === "string" && req.body.password.trim()) {
+      if (req.body.password.trim().length < 6) {
+        return res
+          .status(400)
+          .json({ message: "Password must be at least 6 characters long" });
+      }
+
       const salt = await bcrypt.genSalt(10);
-      user.password = await bcrypt.hash(req.body.password, salt);
+      user.password = await bcrypt.hash(req.body.password.trim(), salt);
     }
 
     const updatedUser = await user.save();
@@ -219,6 +246,31 @@ const updateUserProfile = async (req, res) => {
       userId: req.user._id,
     });
     res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+const deleteUserAccount = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    await User.findByIdAndDelete(req.user._id);
+
+    auditLogger.info("User account deleted", {
+      userId: req.user._id,
+      email: user.email,
+    });
+
+    return res.status(200).json({ message: "Account deleted successfully" });
+  } catch (error) {
+    logger.error(`Delete account error: ${error.message}`, {
+      stack: error.stack,
+      userId: req.user?._id,
+    });
+    return res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
@@ -355,6 +407,7 @@ module.exports = {
   logoutUser,
   getUserProfile,
   updateUserProfile,
+  deleteUserAccount,
   forgotPassword,
   resetPassword,
   verifyOTP,

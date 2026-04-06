@@ -1,28 +1,53 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 const Dashboard = () => {
-  const { user } = useAuth();
+  const { user, isAuthenticated, loading: authLoading, token } = useAuth();
   const [myEvents, setMyEvents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
+    if (authLoading) {
+      return;
+    }
+
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
+
     const fetchMyEvents = async () => {
       try {
-        const { data } = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/events/myevents`);
+        const authToken = token || localStorage.getItem('token');
+        const { data } = await axios.get(
+          `${import.meta.env.VITE_BACKEND_URL}/api/events/myevents`,
+          authToken
+            ? {
+                headers: {
+                  Authorization: `Bearer ${authToken}`,
+                },
+              }
+            : undefined
+        );
         setMyEvents(data);
       } catch (error) {
         console.error('Failed to fetch events');
+
+        if (error.response?.status === 401) {
+          localStorage.removeItem('token');
+          navigate('/login');
+        }
       } finally {
         setLoading(false);
       }
     };
     fetchMyEvents();
-  }, []);
+  }, [authLoading, isAuthenticated, navigate, token]);
 
-  if (loading) return <div className="text-center mt-10 text-purple-600">Loading...</div>;
+  if (authLoading || loading) return <div className="text-center mt-10 text-purple-600">Loading...</div>;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">

@@ -71,6 +71,14 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
+  const deleteAccount = async () => {
+    const { data } = await axios.delete(`${import.meta.env.VITE_BACKEND_URL}/api/auth/profile`);
+    localStorage.removeItem('token');
+    setToken(null);
+    setUser(null);
+    return data;
+  };
+
   const forgotPassword = async (email) => {
     const { data } = await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/auth/forgot-password`, { email });
     return data;
@@ -84,7 +92,7 @@ export const AuthProvider = ({ children }) => {
   const isAuthenticated = Boolean(token || user);
 
   return (
-    <AuthContext.Provider value={{ user, setUser, token, isAuthenticated, login, register, verifyOtp, logout, forgotPassword, resetPassword, loading }}>
+    <AuthContext.Provider value={{ user, setUser, token, isAuthenticated, login, register, verifyOtp, logout, deleteAccount, forgotPassword, resetPassword, loading }}>
       {!loading && children}
     </AuthContext.Provider>
   );
