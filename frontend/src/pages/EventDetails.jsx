@@ -883,7 +883,9 @@ const EventDetails = () => {
                         min="1"
                         step="0.01"
                         value={manualGiftAmount}
-                        onChange={(e) => setManualGiftAmount(e.target.value)}
+                        onChange={(e) =>
+                          setManualGiftAmount(e.target.value.startsWith("-") ? "" : e.target.value)
+                        }
                         placeholder="Amount"
                         className="w-full border-2 border-purple-200 rounded-lg px-4 py-2 focus:ring-2 focus:ring-purple-500 outline-none transition-colors"
                         disabled={manualGiftLoading}
@@ -1118,8 +1120,12 @@ const EventDetails = () => {
                 </span>
                 <input
                   type="number"
+                  min="1"
+                  step="0.01"
                   value={customAmount}
-                  onChange={(e) => setCustomAmount(e.target.value)}
+                  onChange={(e) =>
+                    setCustomAmount(e.target.value.startsWith("-") ? "" : e.target.value)
+                  }
                   className="w-full pl-10 pr-4 py-4 bg-gray-50 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-purple-500 focus:bg-white transition-colors text-lg font-bold"
                   placeholder="0.00"
                 />

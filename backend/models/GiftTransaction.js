@@ -15,6 +15,7 @@ const giftTransactionSchema = new mongoose.Schema(
     amount: {
       type: Number,
       required: true,
+      min: 0.01,
     },
     paymentId: {
       type: String,

@@ -70,6 +70,33 @@ exports.getMyEvents = async (req, res) => {
   }
 };
 
+exports.getJoinedEvents = async (req, res) => {
+  try {
+    const joinedRsvps = await RSVP.find({
+      userId: req.user._id,
+      status: { $in: ['accepted', 'attended'] },
+    })
+      .populate({
+        path: 'eventId',
+        populate: { path: 'organizer', select: 'name email' },
+      })
+      .sort({ respondedAt: -1, createdAt: -1 });
+
+    const joinedEvents = joinedRsvps
+      .filter((rsvp) => rsvp.eventId)
+      .map((rsvp) => ({
+        ...rsvp.eventId.toObject(),
+        joinedAt: rsvp.respondedAt || rsvp.updatedAt || rsvp.createdAt,
+        rsvpStatus: rsvp.status,
+      }));
+
+    res.json(joinedEvents);
+  } catch (error) {
+    logger.error(`Get joined events error: ${error.message}`, { stack: error.stack, userId: req.user?._id });
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
 exports.getMyGifts = async (req, res) => {
   try {
     const transactions = await GiftTransaction.find({ userId: req.user._id })

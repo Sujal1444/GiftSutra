@@ -71,6 +71,15 @@ exports.createOrder = async (req, res) => {
     }
 
     const { eventId, amount } = req.body;
+    const numericAmount = Number(amount);
+
+    if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Amount must be greater than 0",
+      });
+    }
+
     const eligibility = await validateContributionEligibility(
       eventId,
       req.user._id,
@@ -83,7 +92,7 @@ exports.createOrder = async (req, res) => {
 
     // Amount in Razorpay is expected in paise (multiply by 100)
     const options = {
-      amount: amount * 100,
+      amount: Math.round(numericAmount * 100),
       currency: "INR",
       receipt: `receipt_${Date.now()}`,
     };
@@ -94,7 +103,7 @@ exports.createOrder = async (req, res) => {
     logger.info(`Order created successfully`, {
       orderId: order.id,
       eventId,
-      amount,
+      amount: numericAmount,
     });
 
     res.status(200).json({
@@ -129,6 +138,15 @@ exports.verifyPayment = async (req, res) => {
       eventId,
       amount,
     } = req.body;
+    const numericAmount = Number(amount);
+
+    if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Amount must be greater than 0",
+      });
+    }
+
     const eligibility = await validateContributionEligibility(
       eventId,
       req.user._id,
@@ -162,7 +180,7 @@ exports.verifyPayment = async (req, res) => {
     const transaction = await GiftTransaction.create({
       userId: req.user._id, // Assume auth middleware sets req.user
       eventId,
-      amount,
+      amount: numericAmount,
       paymentId: razorpay_payment_id,
       orderId: razorpay_order_id,
       status: "success",
@@ -172,13 +190,13 @@ exports.verifyPayment = async (req, res) => {
 
     // Update Event Collected Amount
     await Event.findByIdAndUpdate(eventId, {
-      $inc: { collectedAmount: amount },
+      $inc: { collectedAmount: numericAmount },
     });
 
     auditLogger.info(`Payment verified and transaction recorded`, {
       transactionId: transaction._id,
       eventId,
-      amount,
+      amount: numericAmount,
       userId: req.user._id,
       paymentId: razorpay_payment_id,
     });
